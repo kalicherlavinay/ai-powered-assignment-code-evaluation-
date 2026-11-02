@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CodeGrade AI | Assignment evaluator</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0b1020;--panel:#131b30;--line:#273552;--muted:#97a6c2;--text:#edf3ff;--accent:#8b9cff;--green:#56d6a1;--red:#ff8191}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 80% 0%,#1a2850 0,transparent 38%),var(--bg);color:var(--text);font:15px/1.5 Inter,Segoe UI,system-ui,sans-serif}
+    main{max-width:1120px;margin:auto;padding:40px 22px 70px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:34px}.brand{font-weight:750;letter-spacing:.2px}.badge{font-size:12px;color:#becbff;border:1px solid #394976;border-radius:99px;padding:5px 10px}
+    h1{font-size:clamp(32px,5vw,52px);line-height:1.05;letter-spacing:-1.8px;margin:0 0 14px}.intro{color:var(--muted);max-width:700px;margin-bottom:28px}.grid{display:grid;grid-template-columns:1.3fr .7fr;gap:18px}.panel{background:linear-gradient(145deg,#151e35,#11182a);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 18px 60px #0002}.panel h2{font-size:16px;margin:0 0 14px}.field{margin-bottom:14px}label{display:block;font-size:13px;font-weight:650;margin:0 0 7px;color:#c9d4ec}input,textarea{width:100%;border:1px solid #34425f;border-radius:9px;background:#0b1222;color:var(--text);padding:11px 12px;font:13px ui-monospace,SFMono-Regular,Consolas,monospace;outline:none}input:focus,textarea:focus{border-color:var(--accent)}textarea{min-height:220px;resize:vertical;line-height:1.55}#tests{min-height:112px}.hint{font-size:12px;color:var(--muted);margin-top:6px}button{border:0;border-radius:9px;background:linear-gradient(110deg,#8798ff,#a08aff);color:#0b1020;font-weight:750;padding:12px 18px;cursor:pointer}button:disabled{opacity:.55;cursor:wait}.result{display:none;margin-top:18px}.scores{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.score{background:#0d1528;border:1px solid var(--line);padding:13px;border-radius:11px}.score strong{font-size:25px;display:block}.score span{font-size:11px;color:var(--muted)}.score.total strong{color:var(--green)}.cases{margin-top:16px}.case{padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}.pass{color:var(--green)}.fail{color:var(--red)}.feedback{color:#cbd6ef;padding-left:19px;font-size:13px}.error{color:var(--red);white-space:pre-wrap}.side p{font-size:13px;color:var(--muted)}.weight{display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding:10px 0;font-size:13px}.notice{border-left:2px solid #e7ba63;padding-left:10px;color:#ddcba3!important}.loading{color:var(--muted);font-size:13px;margin-left:10px}
+    @media(max-width:800px){.grid{grid-template-columns:1fr}.top{margin-bottom:24px}}
+  </style>
+</head>
+<body><main>
+  <div class="top"><div class="brand">✳ CodeGrade AI</div><div class="badge">SUPERVISED LEARNING DEMO</div></div>
+  <h1>Evaluate code with<br>tests and intelligence.</h1>
+  <p class="intro">Run assignment test cases, inspect the results, and get a supervised code quality estimate with practical feedback.</p>
+  <div class="grid">
+    <section class="panel">
+      <h2>Submission</h2>
+      <div class="field"><label for="function">Function name</label><input id="function" value="add" autocomplete="off"></div>
+      <div class="field"><label for="source">Python source code</label><textarea id="source" spellcheck="false">def add(a, b):
+    """Return the sum of two numbers."""
+    return a + b</textarea></div>
+      <div class="field"><label for="tests">Test cases (JSON array)</label><textarea id="tests" spellcheck="false">[
+  {"args": [2, 3], "expected": 5},
+  {"args": [-1, 4], "expected": 3},
+  {"args": [0, 0], "expected": 0}
+]</textarea><div class="hint">Each case has args, optional kwargs, and expected.</div></div>
+      <button id="submit">Evaluate submission</button><span id="status" class="loading"></span>
+      <div id="result" class="result panel"><div class="scores"><div class="score total"><strong id="final">—</strong><span>FINAL SCORE</span></div><div class="score"><strong id="correct">—</strong><span>TEST CORRECTNESS</span></div><div class="score"><strong id="quality">—</strong><span>ML QUALITY ESTIMATE</span></div></div><div id="case-list" class="cases"></div><ul id="feedback" class="feedback"></ul></div>
+      <div id="error" class="error"></div>
+    </section>
+    <aside class="panel side"><h2>How scoring works</h2><p>Scores combine observed test results with a supervised model trained on labeled code examples.</p>
+      <div class="weight"><span>Test correctness</span><b>70%</b></div><div class="weight"><span>Model quality estimate</span><b>30%</b></div>
+      <p>The bundled CSV is a small demonstration dataset. Replace it with instructor-reviewed, representative labels before using scores for real grading.</p>
+      <p class="notice">Run only trusted submissions on a machine you control. The child process has a timeout, but it is not a secure sandbox for hostile code.</p>
+      <p>API docs: <a href="/docs" style="color:#aebaff">/docs</a></p></aside>
+  </div>
+</main>
+<script>
+const $=id=>document.getElementById(id);const button=$("submit");
+button.addEventListener("click",async()=>{
+  $("error").textContent="";$("result").style.display="none";
+  let testCases;try{testCases=JSON.parse($("tests").value);if(!Array.isArray(testCases)||!testCases.length)throw new Error("Enter at least one test case.")}catch(e){$("error").textContent="Invalid test case JSON: "+e.message;return}
+  button.disabled=true;$("status").textContent="Evaluating…";
+  try{const response=await fetch("/api/evaluate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({source:$("source").value,function_name:$("function").value,test_cases:testCases})});const data=await response.json();if(!response.ok)throw new Error(data.detail?.map?.(x=>x.msg).join("; ")||data.detail||"Request failed");
+    $("final").textContent=data.final_score+"/100";$("correct").textContent=data.correctness_score+"%";$("quality").textContent=data.quality_score+"/100";
+    $("case-list").innerHTML=data.cases.map((c,i)=>`<div class="case"><b class="${c.passed?"pass":"fail"}">${c.passed?"PASS":"FAIL"}</b> · Case ${i+1}${c.error?` — ${escapeHtml(c.error)}`:c.passed?"":` — expected ${escapeHtml(JSON.stringify(c.expected))}, got ${escapeHtml(JSON.stringify(c.actual))}`}</div>`).join("");
+    $("feedback").innerHTML=data.feedback.map(x=>`<li>${escapeHtml(x)}</li>`).join("");$("result").style.display="block";
+  }catch(e){$("error").textContent=e.message}finally{button.disabled=false;$("status").textContent=""}
+});
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
+</script></body></html>
